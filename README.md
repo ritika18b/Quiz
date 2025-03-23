@@ -51,6 +51,6 @@ Run the `Quiz.py` script to start the Quiz App:
 python Quiz.py
 ```
 
-[![Download](https://img.shields.io/badge/Download-Repository-blue.svg)](https://github.com/ritika18b/Quiz/tree/main.zip)
+[![Download](https://img.shields.io/badge/Download-Repository-blue.svg)](https://github.com/ritika18b/Quiz/archive/refs/heads/main.zip)
 
 
