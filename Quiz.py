@@ -1,26 +1,30 @@
 import tkinter as tk
 from tkinter import messagebox
-import csv
+import requests
 import os
+import random
+from PIL import Image, ImageTk
+import csv
 
-background_image_path = "quiz_background.jpg"
-# Questions, options, and answers
-questions = (
-    "What is the capital of India?",
-    "Which country is famous for the Taj Mahal?",
-    "Which planet is known as the Red Planet?",
-    "Who wrote the play 'Romeo and Juliet'?",
-)
+# Open Trivia Database API URL
+API_URL = "https://opentdb.com/api.php?amount=5&category=23&type=multiple"
 
-options = (
-    ("Paris", "New Delhi", "Japan", "Berlin"),
-    ("America", "China", "India", "France"),
-    ("Mars", "Jupiter", "Venus", "Saturn"),
-    ("William Shakespeare", "George Bernard Shaw", "Oscar Wilde", "Jane Austen"),
-)
+# Background image and icon paths
+background_image_path = "background.jpg"  # Replace with your image path
+icon_path = "icon.ico"  # Replace with your icon path
 
-answers = (1, 2, 0, 0)  # Correct option indices
+# File to store quiz records
 record_file = "quiz_records.csv"
+
+def fetch_questions():
+    try:
+        response = requests.get(API_URL)
+        response.raise_for_status()
+        data = response.json()
+        return data["results"]
+    except requests.exceptions.RequestException as e:
+        messagebox.showerror("Error", f"Failed to fetch questions: {e}")
+        return []
 
 def create_file_if_not_exists():
     if not os.path.isfile(record_file):
@@ -29,22 +33,30 @@ def create_file_if_not_exists():
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
 
-def display_question(question, options):
-    question_label.config(text=question)
+def display_question(question_data):
+    question_label.config(text=question_data["question"])
+    options = question_data["incorrect_answers"] + [question_data["correct_answer"]]
+    random.shuffle(options)
+    
+    global correct_answer
+    correct_answer = question_data["correct_answer"]
+    
     for i, option in enumerate(options):
-        radio_buttons[i].config(text=option)
-    selected_option_var.set(-1)  # Reset the selected option
+        checkbox_vars[i].set(0)
+        checkboxes[i].config(text=option, state=tk.NORMAL)
 
-def user_choice():
-    selected_option = selected_option_var.get()
-    return selected_option
+    correct_answer_label.pack_forget()
+    submit_button.pack(side=tk.LEFT, padx=10,pady=0)
+    next_button.pack_forget()
 
-def calculate_score(answers, user_answers):
-    score = 0
-    for answer, user_answer in zip(answers, user_answers):
-        if answer == user_answer:
-            score += 1
-    return score
+def select_answer():
+    global selected_answer_indices
+    selected_answer_indices = [i for i, var in enumerate(checkbox_vars) if var.get() == 1]
+
+def calculate_score(correct_answer, selected_answers, options):
+    if correct_answer in [options[i] for i in selected_answers]:
+        return 1
+    return 0
 
 def save_score(name, score):
     with open(record_file, "a", newline="") as csvfile:
@@ -52,86 +64,107 @@ def save_score(name, score):
         writer.writerow({"Name": name, "Score": score})
 
 def submit_answer():
-    user_answer = user_choice()
-    if user_answer == -1:
+    global total_score
+    if not selected_answer_indices:
         messagebox.showwarning("Warning", "Please select an option before submitting!")
         return
-
-    user_answers.append(user_answer)
     
-    global question_index
+    options = [checkbox.cget("text") for checkbox in checkboxes]
+    is_correct = calculate_score(correct_answer, selected_answer_indices, options)
+    total_score += is_correct
+    
+    correct_answer_label.config(text=f"Correct answer: {correct_answer}", fg="red")
+    correct_answer_label.pack(pady=10)
+    
+    submit_button.pack_forget()
+    next_button.pack(side=tk.LEFT, padx=10,pady=0)
+
+def next_question():
+    global question_index, selected_answer_indices
     if question_index < len(questions) - 1:
         question_index += 1
-        display_question(questions[question_index], options[question_index])
+        selected_answer_indices = []
+        display_question(questions[question_index])
     else:
-        score = calculate_score(answers, user_answers)
-        save_score(name_entry.get(), score)
-        submit_button.config(state=tk.DISABLED)
-        show_score_button.pack(pady=10)  # Show the "Show Score" button
-        restart_button.pack(pady=10)  # Show the restart button
+        user_details_page()
 
-def restart_quiz():
-    global question_index, user_answers
-    question_index = 0
-    user_answers = []
-    submit_button.config(state=tk.NORMAL)
-    restart_button.pack_forget()  
-    show_score_button.pack_forget()  
-    display_question(questions[question_index], options[question_index])
+def user_details_page():
+    global name_entry, finish_button
+    for widget in window.winfo_children():
+        if widget not in [bg_label]:
+            widget.pack_forget()
 
-def show_score():
-    score = calculate_score(answers, user_answers)
-    score_window = tk.Toplevel(window)
-    score_window.title("Your Score")
-    score_window.geometry("300x150")
-    score_window.configure(bg="#f0f0f0")
+    name_label = tk.Label(window, text="Enter your name:", font=("Arial", 12), bg="white")
+    name_label.pack(pady=10)
 
-    score_label = tk.Label(score_window, text=f"{name_entry.get()}, your score is {score}/{len(answers)}", bg="#f0f0f0", font=("Arial", 14, "bold"))
-    score_label.pack(pady=20)
+    name_entry = tk.Entry(window, font=("Arial", 12))
+    name_entry.pack(pady=5)
 
-    close_button = tk.Button(score_window, text="Close", command=score_window.destroy, font=("Arial", 12), bg="#2196F3", fg="white")
-    close_button.pack(pady=10)
+    finish_button = tk.Button(window, text="Finish", command=finish_quiz, font=("Arial", 12), bg="#4CAF50", fg="white", width=15)
+    finish_button.pack(pady=20)
 
-# Create the main window
+def finish_quiz():
+    name = name_entry.get()
+    if not name:
+        messagebox.showwarning("Warning", "Please enter your name!")
+        return
+    
+    save_score(name, total_score)
+    for widget in window.winfo_children():
+        if widget not in [bg_label]:
+            widget.pack_forget()
+    
+    # Display the score
+    score_label.config(text=f"{name}, your score is {total_score}/{len(questions)}", font=("Arial", 14, "bold"), bg="white")
+    score_label.pack(pady=200)
+
 window = tk.Tk()
 window.title("Quiz App")
-window.geometry("400x300")
-window.configure(bg="#f0f0f0")
 
-# Initialize variables
-selected_option_var = tk.IntVar()  # Initialize before creating radio buttons
-selected_option_var.set(-1)  # Ensure no option is selected by default
-user_answers = []
+if os.path.exists(icon_path):
+    window.iconbitmap(icon_path)
+
+if os.path.exists(background_image_path):
+    bg_image = Image.open(background_image_path)
+    window.geometry(f"{bg_image.width}x{bg_image.height}")
+    bg_photo = ImageTk.PhotoImage(bg_image)
+    bg_label = tk.Label(window, image=bg_photo)
+    bg_label.place(relwidth=1, relheight=1)
+
+questions = fetch_questions()
+if not questions:
+    messagebox.showerror("Error", "Failed to fetch questions. Please try again later.")
+    window.destroy()
+
 question_index = 0
+total_score = 0
+selected_answer_indices = []
+checkbox_vars = [tk.IntVar() for _ in range(4)]
 
-# Create and place widgets
-name_label = tk.Label(window, text="Enter your name:", bg="#f0f0f0", font=("Arial", 12))
-name_label.pack(pady=10)
-
-name_entry = tk.Entry(window, font=("Arial", 12))
-name_entry.pack(pady=5)
-
-question_label = tk.Label(window, text="", bg="#f0f0f0", font=("Arial", 14, "bold"))
+question_label = tk.Label(window, text="", font=("Arial", 14, "bold"), wraplength=500, bg="white")
 question_label.pack(pady=20)
 
-radio_frame = tk.Frame(window, bg="#f0f0f0")
-radio_frame.pack(pady=10)
+checkbox_frame = tk.Frame(window, bg="white")
+checkbox_frame.pack(pady=10)
 
-radio_buttons = [tk.Radiobutton(radio_frame, text="", variable=selected_option_var, value=i, font=("Arial", 12), bg="#f0f0f0", anchor="w") for i in range(4)]
-for radio_button in radio_buttons:
-    radio_button.pack(fill="x", padx=20, pady=2)
+checkboxes = [tk.Checkbutton(checkbox_frame, text="", variable=checkbox_vars[i], command=select_answer, font=("Arial", 12), bg="white") for i in range(4)]
+for checkbox in checkboxes:
+    checkbox.pack(fill="x", padx=20, pady=5)
 
-submit_button = tk.Button(window, text="Submit", command=submit_answer, font=("Arial", 12), bg="#4CAF50", fg="white", width=15)
-submit_button.pack(pady=20)
+button_frame = tk.Frame(window, bg="white",width=15)
+button_frame.pack(pady=20)
 
-restart_button = tk.Button(window, text="Restart Quiz", command=restart_quiz, font=("Arial", 12), bg="#2196F3", fg="white", width=15)
-restart_button.pack_forget()  
+submit_button = tk.Button(button_frame, text="Submit", command=submit_answer, font=("Arial", 12), bg="#4CAF50", fg="white", width=15)
+submit_button.pack(side=tk.LEFT, padx=10, pady=0)
 
-show_score_button = tk.Button(window, text="Show Score", command=show_score, font=("Arial", 12), bg="#FF5722", fg="white", width=15)
-show_score_button.pack_forget()  
+next_button = tk.Button(button_frame, text="Next", command=next_question, font=("Arial", 12), bg="#2196F3", fg="white", width=15)
+next_button.pack_forget()
 
-create_file_if_not_exists()
-display_question(questions[question_index], options[question_index])
+correct_answer_label = tk.Label(window, text="", font=("Arial", 12), bg="white", fg="red")
+correct_answer_label.pack(pady=10)
 
+score_label = tk.Label(window, text="", font=("Arial", 12, "bold"), bg="white")
+score_label.pack(pady=20)
 
+display_question(questions[question_index])
 window.mainloop()
