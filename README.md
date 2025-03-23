@@ -22,7 +22,7 @@ This is a simple History Quiz App built using Python and Tkinter. The app fetche
 1. Clone the repository:
 
     ```sh
-    git clone https://github.com/ritika18b/quiz-app.git
+    git clone https://github.com/ritika18b/Quiz.git
     cd quiz-app
     ```
 
