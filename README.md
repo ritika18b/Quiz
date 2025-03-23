@@ -17,6 +17,10 @@ This is a simple History Quiz App built using Python and Tkinter. The app fetche
 - Requests
 - Pillow
 
+
+## Screenshot
+![History quiz App](image.png)  
+
 ## Installation
 
 1. Clone the repository:
