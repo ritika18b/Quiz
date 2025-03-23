@@ -49,3 +49,6 @@ Run the `Quiz.py` script to start the Quiz App:
 
 ```sh
 python Quiz.py
+```
+
+[![Download](https://img.shields.io/badge/Download-Repository-blue.svg)](https://github.com/yourusername/quiz-app/archive/refs/heads/main.zip)
