@@ -27,7 +27,7 @@ This is a simple History Quiz App built using Python and Tkinter. The app fetche
 
     ```sh
     git clone https://github.com/ritika18b/Quiz.git
-    cd quiz-app
+    cd Quiz
     ```
 
 2. Install the required packages:
@@ -45,7 +45,7 @@ This is a simple History Quiz App built using Python and Tkinter. The app fetche
 
 ## Usage
 
-Run the `quiz.py` script to start the Quiz App:
+Run the `Quiz.py` script to start the Quiz App:
 
 ```sh
-python [quiz.py]
+python Quiz.py
